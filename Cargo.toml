@@ -9,4 +9,6 @@ anyhow = "1.0.59"                                   # error handling
 bytes = "1.3.0"                                     # helps manage buffers
 thiserror = "1.0.32"                                # error handling
 tokio = { version = "1.23.0", features = ["full"] }
-log = "0.4.27" # async networking
+log = "0.4.27"
+env_logger = "0.11.8" # async networking
+dotenv = "0.15.0"
