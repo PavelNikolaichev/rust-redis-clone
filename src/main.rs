@@ -1,42 +1,45 @@
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use log::{info, error};
 
-fn handle_connection(mut stream: TcpStream) {
-    println!("accepted new connection");
+
+async fn handle_connection(mut stream: TcpStream) {
+    info!("accepted new connection: {:?}", stream.peer_addr());
 
     let mut buffer = [0; 1024];
-    loop {
-        match stream.read(&mut buffer) {
-            Ok(0) => {
-                println!("connection closed");
-                break;
-            }
-            Ok(n) => {
-                println!("received {} bytes", n);
+    match stream.read(&mut buffer).await {
+        Ok(0) => {
+            info!("connection closed: {:?}", stream.peer_addr());
+        }
+        Ok(n) => {
+            info!("received {} bytes from {:?}", n, stream.peer_addr());
 
-                stream.write_all(b"+PONG\r\n").unwrap();
+            if let Err(e) = stream.write_all(b"+PONG\r\n").await {
+                error!("error writing to stream: {}", e);
             }
-            Err(e) => {
-                println!("error reading from stream: {}", e);
-                break;
-            }
+        }
+        Err(e) => {
+            error!("error reading from stream: {}", e);
         }
     }
 }
 
-fn main() {
-    println!("Logs from your program will appear here!");
+#[tokio::main]
+async fn main() {
+    info!("Logs from your program will appear here!");
 
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    
-     for stream in listener.incoming() {
-        match stream {
-             Ok(stream) => {
-                 handle_connection(stream);
-             }
-             Err(e) => {
-                 println!("error: {}", e);
-             }
-         }
-     }
+    let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
+
+    loop {
+        match listener.accept().await {
+            Ok((stream, _addr)) => {
+                tokio::spawn(async move {
+                    handle_connection(stream).await;
+                });
+            }
+            Err(e) => {
+                error!("error accepting connection: {}", e);
+            }
+        }
+    }
 }
