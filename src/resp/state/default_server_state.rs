@@ -1,27 +1,71 @@
 use crate::resp::protocol::RespType;
 use crate::resp::state::server_state::ServerState;
+use log::{info};
 
+// TODO: handle active expiration
 pub struct DefaultServerState {
     // This is a placeholder for the actual server state implementation.
     // In a real application, this would manage the data store.
     data: std::collections::HashMap<String, RespType>,
+
+    expires: std::collections::HashMap<String, u64>, // Placeholder for expiration times
 }
 
 impl Default for DefaultServerState {
     fn default() -> Self {
         DefaultServerState {
             data: std::collections::HashMap::new(),
+            expires: std::collections::HashMap::new(),
         }
     }
 }
 
 impl ServerState for DefaultServerState {
     fn get(&mut self, key: &str) -> Option<RespType> {
+        info!("Getting key: {}", key);
+        if let Some(expiration) = self.expires.get(key) {
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "Failed to get current time".to_string())
+                .ok()?
+                .as_secs();
+
+            info!(
+                "Checking expiration for key: {}, Expiration: {}, Current Time: {}",
+                key, expiration, current_time
+            );
+
+            if *expiration <= current_time {
+                self.data.remove(key);
+                self.expires.remove(key);
+                return None;
+            }
+        }
+
         self.data.get(key).cloned()
     }
 
-    fn set(&mut self, key: String, value: RespType) -> Result<(), String> {
-        self.data.insert(key, value);
+    fn set(&mut self, key: String, value: RespType, ttl: Option<i64>) -> Result<(), String> {
+        self.data.insert(key.clone(), value);
+        info!("Setting key: {}, value: {:?}", key, self.data.get(&key));
+        if let Some(milliseconds) = ttl {
+            if milliseconds < 0 {
+                return Err("TTL cannot be negative".to_string());
+            }
+
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "Failed to get current time".to_string())?
+                .as_secs();
+
+            info!(
+                "Setting expiration for key: {}, TTL: {} ms",
+                key, milliseconds
+            );
+
+            self.expires
+                .insert(key, current_time + (milliseconds as u64 / 1000));
+        }
         Ok(())
     }
 
@@ -73,9 +117,15 @@ impl ServerState for DefaultServerState {
     }
 
     fn expire(&mut self, key: &str, _seconds: u64) -> Result<(), String> {
-        // This is a placeholder implementation. In a real application, you would need to handle expiration.
-        // Here we just return Ok to indicate success.
         if self.data.contains_key(key) {
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "Failed to get current time".to_string())?
+                .as_secs();
+
+            self.expires
+                .insert(key.to_string(), current_time + _seconds);
+
             Ok(())
         } else {
             Err("Key does not exist".to_string())
@@ -83,19 +133,25 @@ impl ServerState for DefaultServerState {
     }
 
     fn ttl(&mut self, key: &str) -> Result<Option<u64>, String> {
-        // This is a placeholder implementation. In a real application, you would need to handle expiration.
-        // Here we just return None to indicate no expiration.
-        if self.data.contains_key(key) {
-            Ok(Some(0)) // Indicating no expiration
+        if let Some(expiration) = self.expires.get(key) {
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "Failed to get current time".to_string())?
+                .as_secs();
+
+            if *expiration > current_time {
+                Ok(Some(*expiration - current_time))
+            } else {
+                Ok(Some(0))
+            }
         } else {
-            Err("Key does not exist".to_string())
+            Ok(None)
         }
     }
 
     fn persist(&mut self, key: &str) -> Result<(), String> {
-        // This is a placeholder implementation. In a real application, you would need to handle persistence.
-        // Here we just return Ok to indicate success.
         if self.data.contains_key(key) {
+            self.expires.remove(key);
             Ok(())
         } else {
             Err("Key does not exist".to_string())

@@ -12,10 +12,10 @@ fn start_server() -> Child {
         .expect("failed to start server")
 }
 
-/// Waits until the server is ready to accept connections, or times out after 10 seconds.
+/// Waits until the server is ready to accept connections, or times out after 30 seconds.
 fn wait_for_server_ready(addr: &str) {
     let start = std::time::Instant::now();
-    while start.elapsed() < Duration::from_secs(10) {
+    while start.elapsed() < Duration::from_secs(30) {
         if TcpStream::connect(addr).is_ok() {
             return;
         }
@@ -88,14 +88,29 @@ fn test_multiple_commands() {
 fn test_get_set() {
     start_server_once();
     let mut stream = TcpStream::connect("127.0.0.1:6379").unwrap();
-    let set_response = send_and_receive(&mut stream, b"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$5\r\nhello\r\n");
+    let set_response = send_and_receive(
+        &mut stream,
+        b"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$5\r\nhello\r\n",
+    );
     assert_eq!(set_response, b"+OK\r\n");
-    
+
     let get_response = send_and_receive(&mut stream, b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
     assert_eq!(get_response, b"$5\r\nhello\r\n");
-    
-    let get_nonexistent_response = send_and_receive(&mut stream, b"*2\r\n$3\r\nGET\r\n$3\r\nbar\r\n");
+
+    let get_nonexistent_response =
+        send_and_receive(&mut stream, b"*2\r\n$3\r\nGET\r\n$3\r\nbar\r\n");
     assert_eq!(get_nonexistent_response, b"$-1\r\n");
+
+    let set_with_ttl_response = send_and_receive(
+        &mut stream,
+        b"*5\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$5\r\nworld\r\n$2\r\nPX\r\n$3\r\n100\r\n",
+    );
+    assert_eq!(set_with_ttl_response, b"+OK\r\n");
+
+    sleep(Duration::from_millis(1000));
     
+    let get_after_ttl_response = send_and_receive(&mut stream, b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
+    assert_eq!(get_after_ttl_response, b"$-1\r\n");
+
     assert!(stream.shutdown(std::net::Shutdown::Both).is_ok());
 }

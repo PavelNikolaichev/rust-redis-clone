@@ -3,7 +3,7 @@ use crate::resp::protocol::RespType;
 /// Simple interface for redis server state.
 pub trait ServerState {
     fn get(&mut self, key: &str) -> Option<RespType>;
-    fn set(&mut self, key: String, value: RespType) -> Result<(), String>;
+    fn set(&mut self, key: String, value: RespType, ttl: Option<i64>) -> Result<(), String>;
 
     fn del(&mut self, key: &str) -> Result<(), String>;
 

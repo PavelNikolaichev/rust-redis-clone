@@ -154,6 +154,22 @@ mod test_set {
             "SET requires at least two arguments".to_string()
         );
     }
+
+    #[test]
+    fn set_with_ttl() {
+        let mut state = DefaultServerState::default();
+
+        let cmd = Set;
+        let args = vec![
+            RespType::BulkString(Option::from("key".to_string())),
+            RespType::BulkString(Option::from("value".to_string())),
+            RespType::Integer(60), // TTL in seconds
+        ];
+
+        let result = cmd.execute(&args, &mut state).unwrap();
+
+        assert_eq!(result, RespType::SimpleString("OK".to_string()));
+    }
 }
 
 #[cfg(test)]
@@ -209,5 +225,31 @@ mod test_get {
             result.unwrap_err(),
             "GET requires at least one argument".to_string()
         );
+    }
+
+    #[test]
+    fn get_expired() {
+        let mut state = DefaultServerState::default();
+
+        let set_cmd = codecrafters_redis::resp::commands::Set;
+        let args = vec![
+            RespType::BulkString(Option::from("temp_key".to_string())),
+            RespType::BulkString(Option::from("temp_value".to_string())),
+            RespType::BulkString(Option::from("PX".to_string())),
+            RespType::BulkString(Option::from("1000".to_string())), // 1 second expiration
+        ];
+        
+        set_cmd.execute(&args, &mut state).unwrap();
+
+        // Wait for the key to expire
+        std::thread::sleep(std::time::Duration::from_secs(2));
+
+        // Now test the GET command
+        let cmd = Get;
+        let get_args = vec![RespType::BulkString(Option::from("temp_key".to_string()))];
+
+        let result = cmd.execute(&get_args, &mut state).unwrap();
+
+        assert_eq!(result, RespType::BulkString(None));
     }
 }
