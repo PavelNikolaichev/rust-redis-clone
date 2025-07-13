@@ -77,7 +77,7 @@ impl Command for Set {
                         _ => return Err("TTL must be a string".to_string()),
                     }
                 }
-                RespType::BulkString(Some(ref option)) if option == "PX" => {
+                RespType::BulkString(Some(ref option)) if option.to_uppercase() == "PX" => {
                     match &args[3] {
                         RespType::BulkString(Some(ttl_str)) | RespType::SimpleString(ttl_str) => {
                             match ttl_str.parse::<i64>() {
