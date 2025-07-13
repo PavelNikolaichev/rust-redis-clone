@@ -64,7 +64,7 @@ impl ServerState for DefaultServerState {
             );
 
             self.expires
-                .insert(key, current_time + (milliseconds as u64 / 1000));
+                .insert(key, current_time + ((milliseconds + 100) as u64 / 1000));
         }
         Ok(())
     }
