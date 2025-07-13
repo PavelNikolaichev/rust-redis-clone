@@ -28,7 +28,7 @@ impl ServerState for DefaultServerState {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_err(|_| "Failed to get current time".to_string())
                 .ok()?
-                .as_secs();
+                .as_millis() as u64;
 
             info!(
                 "Checking expiration for key: {}, Expiration: {}, Current Time: {}",
@@ -56,7 +56,7 @@ impl ServerState for DefaultServerState {
             let current_time = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_err(|_| "Failed to get current time".to_string())?
-                .as_secs();
+                .as_millis() as u64;
 
             info!(
                 "Setting expiration for key: {}, TTL: {} ms",
@@ -64,7 +64,7 @@ impl ServerState for DefaultServerState {
             );
 
             self.expires
-                .insert(key, current_time + ((milliseconds + 100) as u64 / 1000));
+                .insert(key, current_time + milliseconds as u64);
         }
         Ok(())
     }
