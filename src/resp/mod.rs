@@ -3,3 +3,5 @@
 pub mod protocol;
 pub mod commands;
 pub mod command_dispatcher;
+
+pub mod state;

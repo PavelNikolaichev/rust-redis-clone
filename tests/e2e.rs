@@ -83,3 +83,19 @@ fn test_multiple_commands() {
     assert_eq!(response, b"+PONG\r\n");
     assert!(stream.shutdown(std::net::Shutdown::Both).is_ok());
 }
+
+#[test]
+fn test_get_set() {
+    start_server_once();
+    let mut stream = TcpStream::connect("127.0.0.1:6379").unwrap();
+    let set_response = send_and_receive(&mut stream, b"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$5\r\nhello\r\n");
+    assert_eq!(set_response, b"+OK\r\n");
+    
+    let get_response = send_and_receive(&mut stream, b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
+    assert_eq!(get_response, b"$5\r\nhello\r\n");
+    
+    let get_nonexistent_response = send_and_receive(&mut stream, b"*2\r\n$3\r\nGET\r\n$3\r\nbar\r\n");
+    assert_eq!(get_nonexistent_response, b"$-1\r\n");
+    
+    assert!(stream.shutdown(std::net::Shutdown::Both).is_ok());
+}

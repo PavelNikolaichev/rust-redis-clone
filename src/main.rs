@@ -7,8 +7,8 @@ use tokio::sync::Mutex;
 
 pub mod resp;
 use resp::command_dispatcher::CommandDispatcher;
-use resp::commands::DefaultServerState;
 use resp::protocol::{deserialize, serialize, RespType};
+use crate::resp::state::default_server_state::DefaultServerState;
 
 async fn handle_connection(
     mut stream: TcpStream,
